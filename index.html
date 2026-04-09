@@ -44,85 +44,96 @@
 </div>
 
 <script>
-  const API_URL = "https://measurement-cnn.onrender.com/predict";
+const API_URL = "https://measurement-cnn.onrender.com/predict";
 
-  function uploadImage() {
-    const fileInput = document.getElementById("imageInput");
-    const file = fileInput.files[0];
+function uploadImage() {
+  const fileInput = document.getElementById("imageInput");
+  const file = fileInput.files[0];
 
-    if (!file) {
-      alert("Please select an image");
-      return;
-    }
-
-    document.getElementById("result").innerHTML = "⏳ Processing...";
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    fetch(API_URL, {
-      method: "POST",
-      body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log(data);
-
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-
-        ctx.drawImage(img, 0, 0);
-
-        let textOutput = "<h3>Results:</h3>";
-
-        if (data.objects && data.objects.length > 0) {
-
-          data.objects.forEach((obj, index) => {
-            const [x1, y1, x2, y2] = obj.box;
-
-            // Draw bounding box
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-
-            // Label
-            const label = `Class ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`;
-
-            ctx.fillStyle = "red";
-            ctx.font = "14px Arial";
-            ctx.fillText(label, x1, y1 > 10 ? y1 - 5 : 10);
-
-            // Text output
-            textOutput += `
-              <p>
-                Object ${index+1}<br>
-                Class: ${obj.class}<br>
-                Confidence: ${(obj.confidence * 100).toFixed(1)}%
-              </p>
-            `;
-          });
-
-        } else {
-          textOutput += "<p>❌ No objects detected</p>";
-        }
-
-        const resultDiv = document.getElementById("result");
-        resultDiv.innerHTML = textOutput;
-        resultDiv.appendChild(canvas);
-      };
-    })
-    .catch(err => {
-      console.error(err);
-      document.getElementById("result").innerHTML = "❌ Error connecting to API";
-    });
+  if (!file) {
+    alert("Please select an image");
+    return;
   }
+
+  document.getElementById("result").innerHTML = "⏳ Processing...";
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  fetch(API_URL, {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    console.log(data);
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+
+    img.onload = () => {
+
+      // Scale image to max width
+      const maxWidth = 500;
+      const scale = Math.min(maxWidth / img.width, 1);
+
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      let textOutput = "<h3>Results:</h3>";
+
+      if (data.objects && data.objects.length > 0) {
+
+        data.objects.forEach((obj, index) => {
+          let [x1, y1, x2, y2] = obj.box;
+
+          // Scale bounding boxes
+          x1 *= scale;
+          y1 *= scale;
+          x2 *= scale;
+          y2 *= scale;
+
+          // Draw box
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+          // Label
+          const label = `Class ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`;
+
+          ctx.fillStyle = "red";
+          ctx.font = "14px Arial";
+          ctx.fillText(label, x1, y1 > 10 ? y1 - 5 : 10);
+
+          // Text output
+          textOutput += `
+            <p>
+              Object ${index+1}<br>
+              Class: ${obj.class}<br>
+              Confidence: ${(obj.confidence * 100).toFixed(1)}%
+            </p>
+          `;
+        });
+
+      } else {
+        textOutput += "<p>❌ No objects detected</p>";
+      }
+
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = textOutput;
+      resultDiv.appendChild(canvas);
+    };
+  })
+  .catch(err => {
+    console.error(err);
+    document.getElementById("result").innerHTML = "❌ Error connecting to API";
+  });
+}
 </script>
 
 </body>

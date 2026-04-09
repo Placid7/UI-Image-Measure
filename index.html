@@ -9,17 +9,18 @@
       background: #f4f6f9;
     }
     .container {
-      margin-top: 50px;
+      margin-top: 40px;
     }
     input, button {
       padding: 10px;
       margin: 10px;
       font-size: 16px;
     }
-    img {
-      max-width: 400px;
+    canvas {
       margin-top: 20px;
+      max-width: 500px;
       border-radius: 10px;
+      border: 2px solid #ddd;
     }
     .result {
       margin-top: 20px;
@@ -39,14 +40,11 @@
   <br>
   <button onclick="uploadImage()">Predict</button>
 
-  <br>
-  <img id="preview" />
-
   <div class="result" id="result"></div>
 </div>
 
 <script>
-  const API_URL = "https://measurement-cnn.onrender.com/predict"; // 🔴 replace this
+  const API_URL = "https://measurement-cnn.onrender.com/predict";
 
   function uploadImage() {
     const fileInput = document.getElementById("imageInput");
@@ -57,11 +55,10 @@
       return;
     }
 
-    // Preview image
-    document.getElementById("preview").src = URL.createObjectURL(file);
-
     const formData = new FormData();
     formData.append("file", file);
+
+    document.getElementById("result").innerHTML = "⏳ Processing...";
 
     fetch(API_URL, {
       method: "POST",
@@ -69,27 +66,59 @@
     })
     .then(res => res.json())
     .then(data => {
-      let output = "<h3>Results:</h3>";
+      console.log(data);
 
-      if (data.objects && data.objects.length > 0) {
-        data.objects.forEach((obj, index) => {
-          output += `
-            <p>
-              Object ${index+1}<br>
-              Width: ${obj.width_cm?.toFixed(2)} cm<br>
-              Height: ${obj.height_cm?.toFixed(2)} cm
-            </p>
-          `;
-        });
-      } else if (data.detections) {
-        output += "<p>Detected boxes: " + JSON.stringify(data.detections) + "</p>";
-      } else {
-        output += "<p>No objects detected</p>";
-      }
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
 
-      document.getElementById("result").innerHTML = output;
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        ctx.drawImage(img, 0, 0);
+
+        let textOutput = "<h3>Results:</h3>";
+
+        if (data.objects && data.objects.length > 0) {
+
+          data.objects.forEach((obj, index) => {
+            const [x1, y1, x2, y2] = obj.box;
+
+            // Draw box
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+            // Label text
+            const label = `Class ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`;
+
+            ctx.fillStyle = "red";
+            ctx.fillText(label, x1, y1 - 5);
+
+            // Text output
+            textOutput += `
+              <p>
+                Object ${index+1}<br>
+                Class: ${obj.class}<br>
+                Confidence: ${(obj.confidence * 100).toFixed(1)}%
+              </p>
+            `;
+          });
+
+        } else {
+          textOutput += "<p>❌ No objects detected</p>";
+        }
+
+        const resultDiv = document.getElementById("result");
+        resultDiv.innerHTML = textOutput;
+        resultDiv.appendChild(canvas);
+      };
     })
     .catch(err => {
+      console.error(err);
       document.getElementById("result").innerHTML = "❌ Error connecting to API";
     });
   }

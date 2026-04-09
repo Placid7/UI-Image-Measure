@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Object Detection App</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      background: #f4f6f9;
+    }
+    .container {
+      margin-top: 50px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+    }
+    img {
+      max-width: 400px;
+      margin-top: 20px;
+      border-radius: 10px;
+    }
+    .result {
+      margin-top: 20px;
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📸 Object Detection App</h1>
+
+  <input type="file" id="imageInput" />
+  <br>
+  <button onclick="uploadImage()">Predict</button>
+
+  <br>
+  <img id="preview" />
+
+  <div class="result" id="result"></div>
+</div>
+
+<script>
+  const API_URL = "https://measurement-cnn.onrender.com/predict"; // 🔴 replace this
+
+  function uploadImage() {
+    const fileInput = document.getElementById("imageInput");
+    const file = fileInput.files[0];
+
+    if (!file) {
+      alert("Please select an image");
+      return;
+    }
+
+    // Preview image
+    document.getElementById("preview").src = URL.createObjectURL(file);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    fetch(API_URL, {
+      method: "POST",
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      let output = "<h3>Results:</h3>";
+
+      if (data.objects && data.objects.length > 0) {
+        data.objects.forEach((obj, index) => {
+          output += `
+            <p>
+              Object ${index+1}<br>
+              Width: ${obj.width_cm?.toFixed(2)} cm<br>
+              Height: ${obj.height_cm?.toFixed(2)} cm
+            </p>
+          `;
+        });
+      } else if (data.detections) {
+        output += "<p>Detected boxes: " + JSON.stringify(data.detections) + "</p>";
+      } else {
+        output += "<p>No objects detected</p>";
+      }
+
+      document.getElementById("result").innerHTML = output;
+    })
+    .catch(err => {
+      document.getElementById("result").innerHTML = "❌ Error connecting to API";
+    });
+  }
+</script>
+
+</body>
+</html>

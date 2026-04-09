@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Object Detection App</title>
+  <title>Live Object Detection</title>
   <style>
     body {
       font-family: Arial;
@@ -11,16 +11,17 @@
     .container {
       margin-top: 40px;
     }
-    input, button {
-      padding: 10px;
-      margin: 10px;
-      font-size: 16px;
-    }
-    canvas {
+    video, canvas {
       margin-top: 20px;
       max-width: 500px;
       border-radius: 10px;
       border: 2px solid #ddd;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 15px;
+      font-size: 16px;
+      cursor: pointer;
     }
     .result {
       margin-top: 20px;
@@ -34,84 +35,90 @@
 <body>
 
 <div class="container">
-  <h1>📸 Object Detection App</h1>
+  <h1>🎥 Live Object Detection</h1>
 
-  <input type="file" id="imageInput" />
+  <!-- Webcam -->
+  <video id="video" autoplay></video>
   <br>
-  <button onclick="uploadImage()">Predict</button>
 
+  <!-- Button -->
+  <button onclick="captureAndPredict()">Detect</button>
+
+  <!-- Result -->
   <div class="result" id="result"></div>
 </div>
 
 <script>
 const API_URL = "https://measurement-cnn.onrender.com/predict";
 
-function uploadImage() {
-  const fileInput = document.getElementById("imageInput");
-  const file = fileInput.files[0];
+const video = document.getElementById("video");
 
-  if (!file) {
-    alert("Please select an image");
-    return;
-  }
-
-  document.getElementById("result").innerHTML = "⏳ Processing...";
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  fetch(API_URL, {
-    method: "POST",
-    body: formData
+// ✅ Start webcam
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(stream => {
+    video.srcObject = stream;
   })
-  .then(res => res.json())
-  .then(data => {
-    console.log(data);
+  .catch(err => {
+    alert("❌ Camera access denied");
+  });
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+// ✅ Capture frame and send to backend
+function captureAndPredict() {
 
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
 
-    img.onload = () => {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-      const maxWidth = 500;
-      const scale = Math.min(maxWidth / img.width, 1);
+  ctx.drawImage(video, 0, 0);
 
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
+  canvas.toBlob(blob => {
 
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const formData = new FormData();
+    formData.append("file", blob, "frame.jpg");
+
+    fetch(API_URL, {
+      method: "POST",
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+
+      console.log(data);
+
+      const displayCanvas = document.createElement("canvas");
+      const dctx = displayCanvas.getContext("2d");
+
+      displayCanvas.width = canvas.width;
+      displayCanvas.height = canvas.height;
+
+      dctx.drawImage(canvas, 0, 0);
 
       let textOutput = "<h3>Results:</h3>";
 
       if (data.objects && data.objects.length > 0) {
 
         data.objects.forEach((obj, index) => {
-          let [x1, y1, x2, y2] = obj.box;
+          const [x1, y1, x2, y2] = obj.box;
 
-          // SCALE FIX (VERY IMPORTANT)
-          x1 *= scale;
-          y1 *= scale;
-          x2 *= scale;
-          y2 *= scale;
+          // Draw box
+          dctx.strokeStyle = "red";
+          dctx.lineWidth = 2;
+          dctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-          ctx.strokeStyle = "red";
-          ctx.lineWidth = 2;
-          ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-
-          const label = `Class ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`;
-
-          ctx.fillStyle = "red";
-          ctx.font = "14px Arial";
-          ctx.fillText(label, x1, y1 > 10 ? y1 - 5 : 10);
+          // Label
+          dctx.fillStyle = "red";
+          dctx.font = "14px Arial";
+          dctx.fillText(
+            `${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`,
+            x1,
+            y1 > 10 ? y1 - 5 : 10
+          );
 
           textOutput += `
             <p>
-              Object ${index+1}<br>
-              Class: ${obj.class}<br>
-              Confidence: ${(obj.confidence * 100).toFixed(1)}%
+              ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)
             </p>
           `;
         });
@@ -122,12 +129,13 @@ function uploadImage() {
 
       const resultDiv = document.getElementById("result");
       resultDiv.innerHTML = textOutput;
-      resultDiv.appendChild(canvas);
-    };
-  })
-  .catch(err => {
-    console.error(err);
-    document.getElementById("result").innerHTML = "❌ Error connecting to API";
+      resultDiv.appendChild(displayCanvas);
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById("result").innerHTML = "❌ Error connecting to API";
+    });
+
   });
 }
 </script>

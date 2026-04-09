@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Live Object Detection</title>
+  <title>AI Object Detection</title>
   <style>
     body {
       font-family: Arial;
@@ -17,39 +17,34 @@
       align-items: flex-start;
     }
 
-    video {
+    .left {
+      text-align: center;
+    }
+
+    video, img {
       width: 400px;
       border-radius: 10px;
       border: 2px solid #ddd;
-    }
-
-    .controls {
-      text-align: center;
       margin-top: 10px;
     }
 
     button {
-      padding: 10px 15px;
+      padding: 8px 12px;
       margin: 5px;
       font-size: 14px;
       cursor: pointer;
     }
 
     .results {
-      width: 200px;
+      width: 220px;
       background: white;
       padding: 15px;
       border-radius: 10px;
       border: 2px solid #ddd;
     }
 
-    .results h3 {
-      margin-top: 0;
-    }
-
     .item {
       margin: 5px 0;
-      font-size: 14px;
     }
   </style>
 </head>
@@ -57,15 +52,24 @@
 
 <div class="container">
 
-  <!-- CAMERA -->
-  <div>
-    <video id="video" autoplay></video>
+  <div class="left">
 
-    <div class="controls">
-      <button onclick="startCamera()">Start</button>
-      <button onclick="stopCamera()">Stop</button>
-      <button onclick="detect()">Detect</button>
-    </div>
+    <h2>📸 Upload Image</h2>
+    <input type="file" id="imageInput" />
+    <br>
+    <button onclick="uploadImage()">Detect Image</button>
+
+    <img id="preview" />
+
+    <hr>
+
+    <h2>🎥 Live Camera</h2>
+    <video id="video" autoplay></video>
+    <br>
+    <button onclick="startCamera()">Start</button>
+    <button onclick="stopCamera()">Stop</button>
+    <button onclick="detectCamera()">Detect</button>
+
   </div>
 
   <!-- RESULT PANEL -->
@@ -82,7 +86,31 @@ const API_URL = "https://measurement-cnn.onrender.com/predict";
 const video = document.getElementById("video");
 let stream = null;
 
-// START CAMERA
+// ------------------ UPLOAD IMAGE ------------------
+function uploadImage() {
+  const fileInput = document.getElementById("imageInput");
+  const file = fileInput.files[0];
+
+  if (!file) {
+    alert("Select image first");
+    return;
+  }
+
+  document.getElementById("preview").src = URL.createObjectURL(file);
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  fetch(API_URL, {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(showResults)
+  .catch(() => showError());
+}
+
+// ------------------ CAMERA ------------------
 function startCamera() {
   navigator.mediaDevices.getUserMedia({ video: true })
     .then(s => {
@@ -92,7 +120,6 @@ function startCamera() {
     .catch(() => alert("Camera denied"));
 }
 
-// STOP CAMERA
 function stopCamera() {
   if (stream) {
     stream.getTracks().forEach(track => track.stop());
@@ -100,8 +127,7 @@ function stopCamera() {
   }
 }
 
-// DETECT (FAST VERSION - NO IMAGE DISPLAY)
-function detect() {
+function detectCamera() {
 
   if (!video.srcObject) {
     alert("Start camera first");
@@ -126,34 +152,35 @@ function detect() {
       body: formData
     })
     .then(res => res.json())
-    .then(data => {
-
-      const resultDiv = document.getElementById("result");
-
-      let output = "<h3>Objects</h3>";
-
-      if (data.objects && data.objects.length > 0) {
-
-        data.objects.forEach(obj => {
-          output += `
-            <div class="item">
-              ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)
-            </div>
-          `;
-        });
-
-      } else {
-        output += "<p>No objects detected</p>";
-      }
-
-      resultDiv.innerHTML = output;
-
-    })
-    .catch(() => {
-      document.getElementById("result").innerHTML = "Error";
-    });
+    .then(showResults)
+    .catch(() => showError());
 
   });
+}
+
+// ------------------ RESULT DISPLAY ------------------
+function showResults(data) {
+  const resultDiv = document.getElementById("result");
+
+  let output = "<h3>Objects</h3>";
+
+  if (data.objects && data.objects.length > 0) {
+    data.objects.forEach(obj => {
+      output += `
+        <div class="item">
+          ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)
+        </div>
+      `;
+    });
+  } else {
+    output += "<p>No objects detected</p>";
+  }
+
+  resultDiv.innerHTML = output;
+}
+
+function showError() {
+  document.getElementById("result").innerHTML = "❌ Error connecting to API";
 }
 </script>
 

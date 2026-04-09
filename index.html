@@ -19,7 +19,7 @@
     }
     button {
       padding: 10px 20px;
-      margin-top: 15px;
+      margin: 10px;
       font-size: 16px;
       cursor: pointer;
     }
@@ -41,7 +41,9 @@
   <video id="video" autoplay></video>
   <br>
 
-  <!-- Button -->
+  <!-- Buttons -->
+  <button onclick="startCamera()">Start Camera</button>
+  <button onclick="stopCamera()">Turn Off</button>
   <button onclick="captureAndPredict()">Detect</button>
 
   <!-- Result -->
@@ -52,18 +54,35 @@
 const API_URL = "https://measurement-cnn.onrender.com/predict";
 
 const video = document.getElementById("video");
+let stream = null;
 
-// ✅ Start webcam
-navigator.mediaDevices.getUserMedia({ video: true })
-  .then(stream => {
-    video.srcObject = stream;
-  })
-  .catch(err => {
-    alert("❌ Camera access denied");
-  });
+// ✅ Start Camera
+function startCamera() {
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(s => {
+      stream = s;
+      video.srcObject = stream;
+    })
+    .catch(err => {
+      alert("❌ Camera access denied");
+    });
+}
 
-// ✅ Capture frame and send to backend
+// ✅ Stop Camera
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    video.srcObject = null;
+  }
+}
+
+// ✅ Capture frame and detect
 function captureAndPredict() {
+
+  if (!video.srcObject) {
+    alert("⚠️ Start camera first");
+    return;
+  }
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -85,8 +104,6 @@ function captureAndPredict() {
     .then(res => res.json())
     .then(data => {
 
-      console.log(data);
-
       const displayCanvas = document.createElement("canvas");
       const dctx = displayCanvas.getContext("2d");
 
@@ -99,7 +116,7 @@ function captureAndPredict() {
 
       if (data.objects && data.objects.length > 0) {
 
-        data.objects.forEach((obj, index) => {
+        data.objects.forEach(obj => {
           const [x1, y1, x2, y2] = obj.box;
 
           // Draw box
@@ -117,9 +134,7 @@ function captureAndPredict() {
           );
 
           textOutput += `
-            <p>
-              ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)
-            </p>
+            <p>${obj.class} (${(obj.confidence * 100).toFixed(1)}%)</p>
           `;
         });
 

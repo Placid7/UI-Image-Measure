@@ -13,7 +13,8 @@
 
     .container {
       display: flex;
-      gap: 20px;
+      gap: 25px;
+      align-items: flex-start;
     }
 
     .left {
@@ -23,7 +24,7 @@
 
     .right {
       display: flex;
-      gap: 15px;
+      gap: 20px;
       align-items: flex-start;
     }
 
@@ -44,7 +45,7 @@
       padding: 15px;
       border-radius: 10px;
       border: 2px solid #ddd;
-      width: 220px;
+      width: 240px;
     }
 
     .progress {
@@ -63,11 +64,14 @@
       transition: width 0.3s;
     }
 
-    /* ✅ SMALL IMAGE ON RIGHT SIDE */
+    /* ✅ BIGGER + CLEAN CANVAS */
     #outputCanvas {
-      width: 320px;
+      width: 360px;          /* increased */
+      max-height: 260px;     /* prevent overflow */
+      object-fit: contain;   /* no distortion */
       border-radius: 10px;
       border: 2px solid #aaa;
+      background: #fff;
     }
   </style>
 </head>
@@ -109,7 +113,7 @@
       <div id="results"></div>
     </div>
 
-    <!-- ✅ IMAGE ON RIGHT -->
+    <!-- IMAGE -->
     <canvas id="outputCanvas"></canvas>
 
   </div>
@@ -161,9 +165,13 @@ function uploadImage() {
   img.src = URL.createObjectURL(file);
 
   img.onload = () => {
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0);
+
+    // ✅ RESIZE FOR SPEED
+    canvas.width = 320;
+    canvas.height = 240;
+
+    ctx.drawImage(img, 0, 0, 320, 240);
+
     sendToAPI(file);
   };
 }
@@ -172,16 +180,18 @@ function uploadImage() {
 function captureAndDetect() {
   if (!video.srcObject) return alert("Start camera first");
 
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0);
+  // ✅ SMALLER SIZE = FASTER
+  canvas.width = 320;
+  canvas.height = 240;
+
+  ctx.drawImage(video, 0, 0, 320, 240);
 
   canvas.toBlob(blob => {
     sendToAPI(blob);
   });
 }
 
-// API CALL
+// API
 function sendToAPI(file) {
   setLoading();
 
@@ -215,8 +225,10 @@ function drawBoxes(data) {
     ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
     ctx.fillStyle = "red";
+    ctx.font = "12px Arial";
+
     ctx.fillText(
-      `${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`,
+      `${obj.class}`,
       x1,
       y1 > 10 ? y1 - 5 : 10
     );
@@ -229,7 +241,7 @@ function showResults(data) {
 
   if (data.objects && data.objects.length > 0) {
     data.objects.forEach(obj => {
-      output += `<div>${obj.class} - ${(obj.confidence * 100).toFixed(1)}%</div>`;
+      output += `<div>${obj.class} (${(obj.confidence * 100).toFixed(1)}%)</div>`;
     });
   } else {
     output = "No objects detected";

@@ -55,10 +55,10 @@
       return;
     }
 
+    document.getElementById("result").innerHTML = "⏳ Processing...";
+
     const formData = new FormData();
     formData.append("file", file);
-
-    document.getElementById("result").innerHTML = "⏳ Processing...";
 
     fetch(API_URL, {
       method: "POST",
@@ -87,16 +87,17 @@
           data.objects.forEach((obj, index) => {
             const [x1, y1, x2, y2] = obj.box;
 
-            // Draw box
+            // Draw bounding box
             ctx.strokeStyle = "red";
             ctx.lineWidth = 2;
             ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-            // Label text
+            // Label
             const label = `Class ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`;
 
             ctx.fillStyle = "red";
-            ctx.fillText(label, x1, y1 - 5);
+            ctx.font = "14px Arial";
+            ctx.fillText(label, x1, y1 > 10 ? y1 - 5 : 10);
 
             // Text output
             textOutput += `

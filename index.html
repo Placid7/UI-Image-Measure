@@ -76,7 +76,6 @@ function uploadImage() {
 
     img.onload = () => {
 
-      // Scale image to max width
       const maxWidth = 500;
       const scale = Math.min(maxWidth / img.width, 1);
 
@@ -92,25 +91,22 @@ function uploadImage() {
         data.objects.forEach((obj, index) => {
           let [x1, y1, x2, y2] = obj.box;
 
-          // Scale bounding boxes
+          // SCALE FIX (VERY IMPORTANT)
           x1 *= scale;
           y1 *= scale;
           x2 *= scale;
           y2 *= scale;
 
-          // Draw box
           ctx.strokeStyle = "red";
           ctx.lineWidth = 2;
           ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-          // Label
           const label = `Class ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`;
 
           ctx.fillStyle = "red";
           ctx.font = "14px Arial";
           ctx.fillText(label, x1, y1 > 10 ? y1 - 5 : 10);
 
-          // Text output
           textOutput += `
             <p>
               Object ${index+1}<br>

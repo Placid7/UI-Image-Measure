@@ -5,49 +5,75 @@
   <style>
     body {
       font-family: Arial;
-      text-align: center;
       background: #f4f6f9;
-    }
-    .container {
+      display: flex;
+      justify-content: center;
       margin-top: 40px;
     }
-    video, canvas {
-      margin-top: 20px;
-      max-width: 500px;
+
+    .container {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    video {
+      width: 400px;
       border-radius: 10px;
       border: 2px solid #ddd;
     }
+
+    .controls {
+      text-align: center;
+      margin-top: 10px;
+    }
+
     button {
-      padding: 10px 20px;
-      margin: 10px;
-      font-size: 16px;
+      padding: 10px 15px;
+      margin: 5px;
+      font-size: 14px;
       cursor: pointer;
     }
-    .result {
-      margin-top: 20px;
+
+    .results {
+      width: 200px;
       background: white;
       padding: 15px;
       border-radius: 10px;
-      display: inline-block;
+      border: 2px solid #ddd;
+    }
+
+    .results h3 {
+      margin-top: 0;
+    }
+
+    .item {
+      margin: 5px 0;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>🎥 Live Object Detection</h1>
 
-  <!-- Webcam -->
-  <video id="video" autoplay></video>
-  <br>
+  <!-- CAMERA -->
+  <div>
+    <video id="video" autoplay></video>
 
-  <!-- Buttons -->
-  <button onclick="startCamera()">Start Camera</button>
-  <button onclick="stopCamera()">Turn Off</button>
-  <button onclick="captureAndPredict()">Detect</button>
+    <div class="controls">
+      <button onclick="startCamera()">Start</button>
+      <button onclick="stopCamera()">Stop</button>
+      <button onclick="detect()">Detect</button>
+    </div>
+  </div>
 
-  <!-- Result -->
-  <div class="result" id="result"></div>
+  <!-- RESULT PANEL -->
+  <div class="results" id="result">
+    <h3>Objects</h3>
+    <p>No data</p>
+  </div>
+
 </div>
 
 <script>
@@ -56,19 +82,17 @@ const API_URL = "https://measurement-cnn.onrender.com/predict";
 const video = document.getElementById("video");
 let stream = null;
 
-// ✅ Start Camera
+// START CAMERA
 function startCamera() {
   navigator.mediaDevices.getUserMedia({ video: true })
     .then(s => {
       stream = s;
       video.srcObject = stream;
     })
-    .catch(err => {
-      alert("❌ Camera access denied");
-    });
+    .catch(() => alert("Camera denied"));
 }
 
-// ✅ Stop Camera
+// STOP CAMERA
 function stopCamera() {
   if (stream) {
     stream.getTracks().forEach(track => track.stop());
@@ -76,11 +100,11 @@ function stopCamera() {
   }
 }
 
-// ✅ Capture frame and detect
-function captureAndPredict() {
+// DETECT (FAST VERSION - NO IMAGE DISPLAY)
+function detect() {
 
   if (!video.srcObject) {
-    alert("⚠️ Start camera first");
+    alert("Start camera first");
     return;
   }
 
@@ -104,51 +128,29 @@ function captureAndPredict() {
     .then(res => res.json())
     .then(data => {
 
-      const displayCanvas = document.createElement("canvas");
-      const dctx = displayCanvas.getContext("2d");
+      const resultDiv = document.getElementById("result");
 
-      displayCanvas.width = canvas.width;
-      displayCanvas.height = canvas.height;
-
-      dctx.drawImage(canvas, 0, 0);
-
-      let textOutput = "<h3>Results:</h3>";
+      let output = "<h3>Objects</h3>";
 
       if (data.objects && data.objects.length > 0) {
 
         data.objects.forEach(obj => {
-          const [x1, y1, x2, y2] = obj.box;
-
-          // Draw box
-          dctx.strokeStyle = "red";
-          dctx.lineWidth = 2;
-          dctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-
-          // Label
-          dctx.fillStyle = "red";
-          dctx.font = "14px Arial";
-          dctx.fillText(
-            `${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`,
-            x1,
-            y1 > 10 ? y1 - 5 : 10
-          );
-
-          textOutput += `
-            <p>${obj.class} (${(obj.confidence * 100).toFixed(1)}%)</p>
+          output += `
+            <div class="item">
+              ${obj.class} (${(obj.confidence * 100).toFixed(1)}%)
+            </div>
           `;
         });
 
       } else {
-        textOutput += "<p>❌ No objects detected</p>";
+        output += "<p>No objects detected</p>";
       }
 
-      const resultDiv = document.getElementById("result");
-      resultDiv.innerHTML = textOutput;
-      resultDiv.appendChild(displayCanvas);
+      resultDiv.innerHTML = output;
+
     })
-    .catch(err => {
-      console.error(err);
-      document.getElementById("result").innerHTML = "❌ Error connecting to API";
+    .catch(() => {
+      document.getElementById("result").innerHTML = "Error";
     });
 
   });

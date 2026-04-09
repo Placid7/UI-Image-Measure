@@ -7,8 +7,7 @@
       font-family: Arial;
       background: #f4f6f9;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      justify-content: center;
       margin-top: 20px;
     }
 
@@ -24,7 +23,8 @@
 
     .right {
       display: flex;
-      gap: 20px;
+      gap: 15px;
+      align-items: flex-start;
     }
 
     video {
@@ -63,10 +63,9 @@
       transition: width 0.3s;
     }
 
-    /* ✅ SMALL IMAGE AT BOTTOM */
+    /* ✅ SMALL IMAGE ON RIGHT SIDE */
     #outputCanvas {
-      width: 250px;
-      margin-top: 20px;
+      width: 220px;
       border-radius: 10px;
       border: 2px solid #aaa;
     }
@@ -75,10 +74,9 @@
 
 <body>
 
-<!-- MAIN SECTION -->
 <div class="container">
 
-  <!-- LEFT -->
+  <!-- LEFT PANEL -->
   <div class="left">
 
     <h3>Upload Image</h3>
@@ -95,7 +93,7 @@
 
   </div>
 
-  <!-- RIGHT -->
+  <!-- RIGHT PANEL -->
   <div class="right">
 
     <!-- DESCRIPTION BOX -->
@@ -111,12 +109,12 @@
       <div id="results"></div>
     </div>
 
+    <!-- ✅ IMAGE ON RIGHT -->
+    <canvas id="outputCanvas"></canvas>
+
   </div>
 
 </div>
-
-<!-- ✅ IMAGE OUTPUT AT BOTTOM -->
-<canvas id="outputCanvas"></canvas>
 
 <script>
 const API_URL = "https://measurement-cnn.onrender.com/predict";
@@ -127,7 +125,7 @@ const ctx = canvas.getContext("2d");
 
 let stream = null;
 
-// ---------------- CAMERA ----------------
+// CAMERA
 function startCamera() {
   navigator.mediaDevices.getUserMedia({ video: true })
     .then(s => {
@@ -143,7 +141,7 @@ function stopCamera() {
   }
 }
 
-// ---------------- STATUS ----------------
+// STATUS
 function setLoading() {
   document.getElementById("status").innerText = "🔍 Detecting...";
   document.getElementById("progressBar").style.width = "60%";
@@ -154,7 +152,7 @@ function setDone() {
   document.getElementById("progressBar").style.width = "100%";
 }
 
-// ---------------- UPLOAD ----------------
+// UPLOAD
 function uploadImage() {
   const file = document.getElementById("imageInput").files[0];
   if (!file) return alert("Select image");
@@ -166,12 +164,11 @@ function uploadImage() {
     canvas.width = img.width;
     canvas.height = img.height;
     ctx.drawImage(img, 0, 0);
-
     sendToAPI(file);
   };
 }
 
-// ---------------- CAMERA DETECT ----------------
+// CAMERA DETECT
 function captureAndDetect() {
   if (!video.srcObject) return alert("Start camera first");
 
@@ -184,7 +181,7 @@ function captureAndDetect() {
   });
 }
 
-// ---------------- API ----------------
+// API CALL
 function sendToAPI(file) {
   setLoading();
 
@@ -206,7 +203,7 @@ function sendToAPI(file) {
   });
 }
 
-// ---------------- DRAW BOX ----------------
+// DRAW BOXES
 function drawBoxes(data) {
   if (!data.objects) return;
 
@@ -226,7 +223,7 @@ function drawBoxes(data) {
   });
 }
 
-// ---------------- TEXT RESULT ----------------
+// TEXT RESULTS
 function showResults(data) {
   let output = "";
 

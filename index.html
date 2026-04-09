@@ -1,1 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Object Detection</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #f4f6f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
 
+    .container {
+      display: flex;
+      gap: 20px;
+    }
+
+    .left {
+      width: 300px;
+      text-align: center;
+    }
+
+    .right {
+      display: flex;
+      gap: 20px;
+    }
+
+    video {
+      width: 300px;
+      border-radius: 10px;
+      border: 2px solid #ddd;
+    }
+
+    button {
+      padding: 8px 12px;
+      margin: 5px;
+      cursor: pointer;
+    }
+
+    .box {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      border: 2px solid #ddd;
+      width: 220px;
+    }
+
+    .progress {
+      width: 100%;
+      height: 8px;
+      background: #ddd;
+      border-radius: 5px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: green;
+      transition: width 0.3s;
+    }
+
+    /* ✅ SMALL IMAGE AT BOTTOM */
+    #outputCanvas {
+      width: 250px;
+      margin-top: 20px;
+      border-radius: 10px;
+      border: 2px solid #aaa;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- MAIN SECTION -->
+<div class="container">
+
+  <!-- LEFT -->
+  <div class="left">
+
+    <h3>Upload Image</h3>
+    <input type="file" id="imageInput"><br>
+    <button onclick="uploadImage()">Detect Image</button>
+
+    <hr>
+
+    <h3>Camera</h3>
+    <video id="video" autoplay></video><br>
+    <button onclick="startCamera()">Start</button>
+    <button onclick="stopCamera()">Stop</button>
+    <button onclick="captureAndDetect()">Detect</button>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+
+    <!-- DESCRIPTION BOX -->
+    <div class="box">
+      <h3>Status</h3>
+      <div id="status">Idle</div>
+
+      <div class="progress">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+
+      <h3>Objects</h3>
+      <div id="results"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ✅ IMAGE OUTPUT AT BOTTOM -->
+<canvas id="outputCanvas"></canvas>
+
+<script>
+const API_URL = "https://measurement-cnn.onrender.com/predict";
+
+const video = document.getElementById("video");
+const canvas = document.getElementById("outputCanvas");
+const ctx = canvas.getContext("2d");
+
+let stream = null;
+
+// ---------------- CAMERA ----------------
+function startCamera() {
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(s => {
+      stream = s;
+      video.srcObject = stream;
+    });
+}
+
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    video.srcObject = null;
+  }
+}
+
+// ---------------- STATUS ----------------
+function setLoading() {
+  document.getElementById("status").innerText = "🔍 Detecting...";
+  document.getElementById("progressBar").style.width = "60%";
+}
+
+function setDone() {
+  document.getElementById("status").innerText = "✅ Done";
+  document.getElementById("progressBar").style.width = "100%";
+}
+
+// ---------------- UPLOAD ----------------
+function uploadImage() {
+  const file = document.getElementById("imageInput").files[0];
+  if (!file) return alert("Select image");
+
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+
+  img.onload = () => {
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+
+    sendToAPI(file);
+  };
+}
+
+// ---------------- CAMERA DETECT ----------------
+function captureAndDetect() {
+  if (!video.srcObject) return alert("Start camera first");
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  ctx.drawImage(video, 0, 0);
+
+  canvas.toBlob(blob => {
+    sendToAPI(blob);
+  });
+}
+
+// ---------------- API ----------------
+function sendToAPI(file) {
+  setLoading();
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  fetch(API_URL, {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    drawBoxes(data);
+    showResults(data);
+    setDone();
+  })
+  .catch(() => {
+    document.getElementById("status").innerText = "❌ Error";
+  });
+}
+
+// ---------------- DRAW BOX ----------------
+function drawBoxes(data) {
+  if (!data.objects) return;
+
+  data.objects.forEach(obj => {
+    const [x1, y1, x2, y2] = obj.box;
+
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+    ctx.fillStyle = "red";
+    ctx.fillText(
+      `${obj.class} (${(obj.confidence * 100).toFixed(1)}%)`,
+      x1,
+      y1 > 10 ? y1 - 5 : 10
+    );
+  });
+}
+
+// ---------------- TEXT RESULT ----------------
+function showResults(data) {
+  let output = "";
+
+  if (data.objects && data.objects.length > 0) {
+    data.objects.forEach(obj => {
+      output += `<div>${obj.class} - ${(obj.confidence * 100).toFixed(1)}%</div>`;
+    });
+  } else {
+    output = "No objects detected";
+  }
+
+  document.getElementById("results").innerHTML = output;
+}
+</script>
+
+</body>
+</html>
